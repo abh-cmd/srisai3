@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendEmail } from '@/utils/email';
+// import { sendEmail } from '@/utils/email';
 
 export async function POST(request) {
   try {
@@ -33,40 +33,40 @@ export async function POST(request) {
       );
     }
 
-    // Send email
-    const emailResponse = await sendEmail({
-      subject: `New Consultation Request from ${name}`,
-      text: `
-        New Consultation Request Details:
-        
-        Name: ${name}
-        Mobile: ${mobile}
-        Email: ${email}
-        Home Type: ${homeType}
-        Location: ${location}
-        
-        Time submitted: ${new Date().toLocaleString()}
-      `,
-      html: `
-        <h2>New Consultation Request</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Mobile:</strong> ${mobile}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Home Type:</strong> ${homeType}</p>
-        <p><strong>Location:</strong> ${location}</p>
-        <p><strong>Time submitted:</strong> ${new Date().toLocaleString()}</p>
-      `,
-    });
+    // Comment out email sending code
+    // const emailResponse = await sendEmail({
+    //   subject: `New Consultation Request from ${name}`,
+    //   text: `
+    //     New Consultation Request Details:
+    //     
+    //     Name: ${name}
+    //     Mobile: ${mobile}
+    //     Email: ${email}
+    //     Home Type: ${homeType}
+    //     Location: ${location}
+    //     
+    //     Time submitted: ${new Date().toLocaleString()}
+    //   `,
+    //   html: `
+    //     <h2>New Consultation Request</h2>
+    //     <p><strong>Name:</strong> ${name}</p>
+    //     <p><strong>Mobile:</strong> ${mobile}</p>
+    //     <p><strong>Email:</strong> ${email}</p>
+    //     <p><strong>Home Type:</strong> ${homeType}</p>
+    //     <p><strong>Location:</strong> ${location}</p>
+    //     <p><strong>Time submitted:</strong> ${new Date().toLocaleString()}</p>
+    //   `,
+    // });
 
-    if (!emailResponse.success) {
-      console.error('Email sending failed:', emailResponse.error);
-      return NextResponse.json(
-        { error: `Failed to send email: ${emailResponse.error}` },
-        { status: 500 }
-      );
-    }
+    // if (!emailResponse.success) {
+    //   console.error('Email sending failed:', emailResponse.error);
+    //   return NextResponse.json(
+    //     { error: `Failed to send email: ${emailResponse.error}` },
+    //     { status: 500 }
+    //   );
+    // }
 
-    console.log('Email sent successfully:', emailResponse.response);
+    // console.log('Email sent successfully:', emailResponse.response);
     return NextResponse.json(
       { message: 'Consultation request submitted successfully' },
       { status: 200 }
