@@ -70,7 +70,7 @@ const WhatsAppWidget = () => {
                                 {/* Header */}
                                 <div className="text-center border-b border-amber-500/20 pb-3">
                                     <h3 className="text-amber-400 font-semibold text-lg">Contact Us</h3>
-                                    <p className="text-gray-300 text-sm">We're here to help!</p>
+                                    <p className="text-gray-300 text-sm">We&apos;re here to help!</p>
                                 </div>
 
                                 {/* Phone Number */}
