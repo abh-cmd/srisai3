@@ -2,27 +2,116 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MdBrush, MdAccessTime, MdPayments, MdLocationOn, MdPhone, MdEmail } from 'react-icons/md';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Consultation() {
     const router = useRouter();
     const [formData, setFormData] = useState({
         name: '',
         mobile: '',
-        homeType: '2BHK',
         email: '',
+        homeType: '',
         location: ''
     });
-
-    const [isVisible, setIsVisible] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const [isFormEnabled, setIsFormEnabled] = useState(true);
 
     useEffect(() => {
-        setIsVisible(true);
+        // Check if the API is available
+        fetch('/api/contact', { method: 'OPTIONS' })
+            .catch(() => {
+                setIsFormEnabled(false);
+                showNotification('Service temporarily unavailable. Please try again later.', 'error');
+            });
     }, []);
 
-    const handleSubmit = (e) => {
+    const showNotification = (message, type = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 5000);
+    };
+
+    const validateField = (name, value) => {
+        switch (name) {
+            case 'name':
+                return !value.trim() ? 'Name is required' : '';
+            case 'mobile':
+                if (!value.trim()) return 'Mobile number is required';
+                if (!/^[6-9]\d{9}$/.test(value)) return 'Please enter a valid 10-digit Indian mobile number';
+                return '';
+            case 'email':
+                if (!value.trim()) return 'Email is required';
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+                return '';
+            case 'homeType':
+                return !value ? 'Please select a home type' : '';
+            case 'location':
+                return !value.trim() ? 'Location is required' : '';
+            default:
+                return '';
+        }
+    };
+
+    const validateForm = () => {
+        const newErrors = {};
+        let isValid = true;
+
+        Object.keys(formData).forEach(key => {
+            const error = validateField(key, formData[key]);
+            if (error) {
+                newErrors[key] = error;
+                isValid = false;
+            }
+        });
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Form submitted:', formData);
+        
+        if (!isFormEnabled) {
+            showNotification('Service temporarily unavailable. Please try again later.', 'error');
+            return;
+        }
+
+        if (!validateForm()) {
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showNotification('Thank you! We will contact you soon.');
+                setFormData({
+                    name: '',
+                    mobile: '',
+                    email: '',
+                    homeType: '',
+                    location: ''
+                });
+                setErrors({});
+            } else {
+                showNotification(data.error || 'Something went wrong. Please try again.', 'error');
+            }
+        } catch (error) {
+            showNotification('Failed to submit. Please try again.', 'error');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleChange = (e) => {
@@ -31,6 +120,14 @@ export default function Consultation() {
             ...prev,
             [name]: value
         }));
+        
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
     };
 
     const containerVariants = {
@@ -72,6 +169,24 @@ export default function Consultation() {
 
     return (
         <div className="relative min-h-screen bg-black/25 backdrop-blur-lg">
+            {/* Notification */}
+            <AnimatePresence>
+                {notification && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+                            notification.type === 'success' 
+                                ? 'bg-green-500 text-white' 
+                                : 'bg-red-500 text-white'
+                        }`}
+                    >
+                        {notification.message}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Background Overlay with Gradient */}
             <div className="absolute inset-0 bg-black/25 backdrop-blur-lg">
                 <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-transparent to-black/30"></div>
@@ -255,52 +370,57 @@ export default function Consultation() {
                             >
                                 <div className="bg-black/15 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/10 hover:border-white/20 transition-all duration-500 hover:shadow-amber-500/10">
                                     <form onSubmit={handleSubmit} className="space-y-6">
+                                        {notification && (
+                                            <div className={`p-4 mb-6 rounded-md ${notification.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                                {notification.message}
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <motion.div 
-                                                variants={textVariants}
-                                                className="group"
-                                            >
-                                                <label htmlFor="name" className="block text-sm font-medium text-white mb-2 group-hover:text-amber-300 transition-colors duration-300">
-                                                    Full Name *
+                                            <div>
+                                                <label htmlFor="name" className="block text-sm font-medium text-white mb-2">
+                                                    Full Name
                                                 </label>
                                                 <input
                                                     type="text"
                                                     id="name"
                                                     name="name"
-                                                    required
                                                     value={formData.name}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20"
+                                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                                        errors.name ? 'border-red-500' : 'border-white/10'
+                                                    } bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20`}
                                                     placeholder="Enter your full name"
+                                                    disabled={isSubmitting}
                                                 />
-                                            </motion.div>
+                                                {errors.name && (
+                                                    <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                                                )}
+                                            </div>
 
-                                            <motion.div 
-                                                variants={textVariants}
-                                                className="group"
-                                            >
-                                                <label htmlFor="mobile" className="block text-sm font-medium text-white mb-2 group-hover:text-amber-300 transition-colors duration-300">
-                                                    Mobile Number *
+                                            <div>
+                                                <label htmlFor="mobile" className="block text-sm font-medium text-white mb-2">
+                                                    Mobile Number
                                                 </label>
                                                 <input
                                                     type="tel"
                                                     id="mobile"
                                                     name="mobile"
-                                                    required
                                                     value={formData.mobile}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20"
+                                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                                        errors.mobile ? 'border-red-500' : 'border-white/10'
+                                                    } bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20`}
                                                     placeholder="Enter your mobile number"
+                                                    disabled={isSubmitting}
                                                 />
-                                            </motion.div>
-                                        </div>
+                                                {errors.mobile && (
+                                                    <p className="mt-1 text-sm text-red-500">{errors.mobile}</p>
+                                                )}
+                                            </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <motion.div 
-                                                variants={textVariants}
-                                                className="group"
-                                            >
-                                                <label htmlFor="email" className="block text-sm font-medium text-white mb-2 group-hover:text-amber-300 transition-colors duration-300">
+                                            <div>
+                                                <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
                                                     Email Address
                                                 </label>
                                                 <input
@@ -309,64 +429,75 @@ export default function Consultation() {
                                                     name="email"
                                                     value={formData.email}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20"
+                                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                                        errors.email ? 'border-red-500' : 'border-white/10'
+                                                    } bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20`}
                                                     placeholder="Enter your email address"
+                                                    disabled={isSubmitting}
                                                 />
-                                            </motion.div>
+                                                {errors.email && (
+                                                    <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+                                                )}
+                                            </div>
 
-                                            <motion.div 
-                                                variants={textVariants}
-                                                className="group"
-                                            >
-                                                <label htmlFor="location" className="block text-sm font-medium text-white mb-2 group-hover:text-amber-300 transition-colors duration-300">
-                                                    Location *
+                                            <div>
+                                                <label htmlFor="homeType" className="block text-sm font-medium text-white mb-2">
+                                                    Type of Home
+                                                </label>
+                                                <select
+                                                    id="homeType"
+                                                    name="homeType"
+                                                    value={formData.homeType}
+                                                    onChange={handleChange}
+                                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                                        errors.homeType ? 'border-red-500' : 'border-white/10'
+                                                    } bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20`}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    <option value="">Select a type</option>
+                                                    <option value="Apartment">Apartment</option>
+                                                    <option value="Villa">Villa</option>
+                                                    <option value="Independent House">Independent House</option>
+                                                    <option value="Commercial Space">Commercial Space</option>
+                                                </select>
+                                                {errors.homeType && (
+                                                    <p className="mt-1 text-sm text-red-500">{errors.homeType}</p>
+                                                )}
+                                            </div>
+
+                                            <div className="md:col-span-2">
+                                                <label htmlFor="location" className="block text-sm font-medium text-white mb-2">
+                                                    Location
                                                 </label>
                                                 <input
                                                     type="text"
                                                     id="location"
                                                     name="location"
-                                                    required
                                                     value={formData.location}
                                                     onChange={handleChange}
-                                                    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20"
+                                                    className={`w-full px-4 py-3 rounded-xl border ${
+                                                        errors.location ? 'border-red-500' : 'border-white/10'
+                                                    } bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20`}
                                                     placeholder="Enter your location"
+                                                    disabled={isSubmitting}
                                                 />
-                                            </motion.div>
+                                                {errors.location && (
+                                                    <p className="mt-1 text-sm text-red-500">{errors.location}</p>
+                                                )}
+                                            </div>
                                         </div>
 
-                                        <motion.div 
-                                            variants={textVariants}
-                                            className="group"
-                                        >
-                                            <label htmlFor="homeType" className="block text-sm font-medium text-white mb-2 group-hover:text-amber-300 transition-colors duration-300">
-                                                Property Type *
-                                            </label>
-                                            <select
-                                                id="homeType"
-                                                name="homeType"
-                                                required
-                                                value={formData.homeType}
-                                                onChange={handleChange}
-                                                className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder-gray-400 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-300 hover:border-white/20"
+                                        <div className="mt-8">
+                                            <button
+                                                type="submit"
+                                                disabled={isSubmitting}
+                                                className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-all duration-300 ${
+                                                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                                                }`}
                                             >
-                                                <option value="2BHK">2 BHK Apartment</option>
-                                                <option value="3BHK">3 BHK Apartment</option>
-                                                <option value="4+BHK">4+ BHK / Duplex</option>
-                                                <option value="Independent">Independent House / Villa</option>
-                                                <option value="Commercial">Commercial Space</option>
-                                                <option value="Others">Others</option>
-                                            </select>
-                                        </motion.div>
-
-                                        <motion.button
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            type="submit"
-                                            className="w-full relative overflow-hidden bg-gradient-to-r from-amber-500 to-amber-600 text-white px-10 py-4 rounded-xl text-lg font-medium transition-all duration-300 ease-in-out hover:from-amber-600 hover:to-amber-700 shadow-lg hover:shadow-xl"
-                                        >
-                                            <span className="relative z-10">Schedule Consultation</span>
-                                            <div className="absolute inset-0 bg-gradient-to-r from-amber-600 to-amber-700 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
-                                        </motion.button>
+                                                {isSubmitting ? 'Submitting...' : 'Schedule Consultation'}
+                                            </button>
+                                        </div>
                                     </form>
                                 </div>
                             </motion.div>
